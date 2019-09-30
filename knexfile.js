@@ -1,14 +1,11 @@
 module.exports = {
   development: {
-    client: 'sqlite3',
-    useNullAsDefault: true,
+    client: "mysql",
     connection: {
-      filename: './database/auth.db3',
-    },
-    pool: {
-      afterCreate: (conn, done) => {
-        conn.run('PRAGMA foreign_keys = ON', done);
-      },
+      host: "127.0.0.1",
+      user: "root",
+      password: "Alligator7",
+      database: "auth"
     },
     migrations: {
       directory: './database/migrations',
