@@ -4,6 +4,8 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const session = require("express-session");
 const server = express();
+const secret = "it's spicy";
+const jwt = require("jsonwebtoken");
 
 const db = require("./database/dbConfig.js");
 const Users = require("./users/users-model.js");
@@ -37,7 +39,6 @@ server.post("/api/register", (req, res) => {
   db("users")
     .insert(user)
     .then(result => {
-      console.log("result is: ", result);
       res.status(201).json(user);
     })
     .catch(err => {
@@ -52,8 +53,8 @@ server.post("/api/login", (req, res) => {
     .first()
     .then(user => {
       if (user && bcrypt.compareSync(credentials.password, user.password)) {
-        req.session.user = credentials;
-        res.status(200).json({ message: `Welcome ${user.username}!` });
+        const token = generateToken(user);
+        res.status(200).json(token);
       } else {
         res.status(401).json({ message: "Invalid Credentials" });
       }
@@ -89,9 +90,27 @@ server.listen(port, () => console.log(`\n** Running on port ${port} **\n`));
 
 // To restrict routes:
 function protected(req, res, next) {
-  if (req.session && req.session.user) {
-    next();
+  const token = req.headers.authorization;
+  if (token) {
+    jwt.verify(token, secret, function(err, decodedToken) {
+      if (err) {
+        return res.status(401).json({ error: "Invalid token" });
+      }
+      next();
+    });
   } else {
-    res.status(401).json({ message: "you shall not pass!!" });
+    return res.status(401).json("You are not permitted");
   }
+}
+
+// Generate JWT Token
+function generateToken(user) {
+  const payload = {
+    username: user.username,
+    password: user.password
+  };
+  const options = {
+    expiresIn: "2h"
+  };
+  return jwt.sign(payload, secret, options);
 }
