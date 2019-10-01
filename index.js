@@ -2,15 +2,29 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const bcrypt = require("bcryptjs");
+const session = require("express-session");
+const server = express();
 
 const db = require('./database/dbConfig.js');
 const Users = require('./users/users-model.js');
 
-const server = express();
+const sessionConfig = {
+  name: 'Nicky Authorization Cookie',
+  secret: 'you are protected',
+  cookie: {
+    maxAge: 1000 * 60 * 60,
+    secure: false,
+    httpOnly: true
+  },
+  resave: false,
+  saveUninitialized: false,
+}
 
 server.use(helmet());
 server.use(express.json());
 server.use(cors());
+server.use(session(sessionConfig));
+
 
 server.get('/', (req, res) => {
   res.send("It's alive!");
@@ -33,6 +47,7 @@ server.post('/api/login', (req, res) => {
   const credentials = req.body;
   db("users").where({username: credentials.username}).first().then(user => {
     if (user && bcrypt.compareSync(credentials.password, user.password)) {
+      req.session.user = credentials;
       res.status(200).json({ message: `Welcome ${user.username}!` });
     }
     else {
@@ -43,7 +58,7 @@ server.post('/api/login', (req, res) => {
   });
 });
 
-server.get('/api/users', (req, res) => {
+server.get('/api/users', protected, (req, res) => {
   Users.find()
     .then(users => {
       res.json(users);
@@ -53,3 +68,15 @@ server.get('/api/users', (req, res) => {
 
 const port = process.env.PORT || 5000;
 server.listen(port, () => console.log(`\n** Running on port ${port} **\n`));
+
+
+
+
+// Restrict route
+function protected(req, res, next) {
+  if (req.session && req.session.user) {
+    next();
+  } else {
+    res.status(401).json({ message: 'you shall not pass!!' });
+  }
+}
